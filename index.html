@@ -2,10 +2,14 @@
 <html lang="id">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Ujian Online">
+<meta name="theme-color" content="#3b82f6">
 <title>Halaman Ujian — Peserta</title>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -19,18 +23,24 @@
     --sans: 'Plus Jakarta Sans', sans-serif;
     --radius: 12px; --header-collapsed-h: 48px;
   }
-  body { font-family: var(--sans); background: var(--bg); color: var(--text); min-height: 100vh; overflow: hidden; }
+  body {
+    font-family: var(--sans);
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow: hidden;
+    -webkit-font-smoothing: antialiased;
+    -webkit-tap-highlight-color: transparent;
+  }
 
-  /* ── LOGIN SCREEN ── */
   .login-screen { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; background: linear-gradient(135deg, #eff6ff 0%, #f8fafc 50%, #ecfdf5 100%); overflow-y: auto; }
-  .login-card { background: var(--white); border: 1px solid var(--border); border-radius: 20px; padding: 32px 28px; width: 100%; max-width: 440px; box-shadow: 0 4px 24px rgba(0,0,0,0.06); }
+  .login-card {\n    background: var(--white);\n    border: 1px solid var(--border);\n    border-radius: 20px;\n    padding: 32px 28px;\n    width: 100%;\n    max-width: 440px;\n    box-shadow: 0 4px 24px rgba(0,0,0,0.06);\n    padding-bottom: calc(32px + max(0px, env(safe-area-inset-bottom)));\n  }
   .login-logo { text-align: center; margin-bottom: 24px; }
   .login-logo-icon { width: 56px; height: 56px; background: var(--accent); border-radius: 16px; display: flex; align-items: center; justify-content: center; margin: 0 auto 12px; }
   .login-logo-icon svg { width: 26px; height: 26px; color: white; }
   .login-title { font-size: 20px; font-weight: 700; margin-bottom: 3px; }
   .login-sub { font-size: 13px; color: var(--muted); }
 
-  /* STEP indicator */
   .step-indicator { display: flex; align-items: center; gap: 0; margin-bottom: 24px; }
   .step-item { display: flex; align-items: center; gap: 6px; flex: 1; }
   .step-num { width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; flex-shrink: 0; transition: all .2s; }
@@ -47,7 +57,6 @@
   .form-step { display: none; }
   .form-step.active { display: block; }
 
-  /* ROOM CODE INPUT */
   .room-code-input-wrapper { position: relative; margin-bottom: 14px; }
   .room-code-input {
     width: 100%; padding: 14px 16px; border: 2px solid var(--border); border-radius: 12px;
@@ -68,16 +77,78 @@
   .form-group { margin-bottom: 14px; }
   .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px; }
   label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 5px; }
-  input[type="text"], select { width: 100%; padding: 11px 14px; border: 1.5px solid var(--border); border-radius: 10px; font-family: var(--sans); font-size: 14px; color: var(--text); background: var(--bg); outline: none; transition: border-color .15s; appearance: none; -webkit-appearance: none; }
+  input[type="text"], select {
+    width: 100%;
+    padding: 11px 14px;
+    min-height: 44px;
+    border: 1.5px solid var(--border);
+    border-radius: 10px;
+    font-family: var(--sans);
+    font-size: 14px;
+    color: var(--text);
+    background: var(--bg);
+    outline: none;
+    transition: border-color .15s;
+    appearance: none;
+    -webkit-appearance: none;
+    -webkit-user-select: none;
+  }
+  input[type="password"] {
+    width: 100%;
+    padding: 11px 14px;
+    min-height: 44px;
+    border: 1.5px solid var(--border);
+    border-radius: 10px;
+    font-family: var(--sans);
+    font-size: 14px;
+    color: var(--text);
+    background: var(--bg);
+    outline: none;
+    transition: border-color .15s;
+  }
   input[type="text"]:focus, select:focus { border-color: var(--accent); background: var(--white); }
   .select-wrapper { position: relative; }
   .select-wrapper::after { content: ''; position: absolute; right: 13px; top: 50%; transform: translateY(-50%); width: 0; height: 0; border-left: 5px solid transparent; border-right: 5px solid transparent; border-top: 5px solid var(--muted); pointer-events: none; }
 
-  .btn-primary { width: 100%; padding: 13px; background: var(--accent); color: white; border: none; border-radius: 10px; font-family: var(--sans); font-size: 15px; font-weight: 600; cursor: pointer; transition: all .15s; margin-top: 4px; }
+  .btn-primary {
+    width: 100%;
+    padding: 13px;
+    min-height: 48px;
+    background: var(--accent);
+    color: white;
+    border: none;
+    border-radius: 10px;
+    font-family: var(--sans);
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all .15s;
+    margin-top: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
   .btn-primary:hover { background: #2563eb; transform: translateY(-1px); }
   .btn-primary:active { transform: translateY(0); }
   .btn-primary:disabled { background: #93c5fd; cursor: not-allowed; transform: none; }
-  .btn-secondary { width: 100%; padding: 11px; background: var(--bg); color: var(--muted); border: 1.5px solid var(--border); border-radius: 10px; font-family: var(--sans); font-size: 14px; font-weight: 600; cursor: pointer; transition: all .15s; margin-bottom: 8px; }
+  .btn-secondary {
+    width: 100%;
+    padding: 11px;
+    min-height: 48px;
+    background: var(--bg);
+    color: var(--muted);
+    border: 1.5px solid var(--border);
+    border-radius: 10px;
+    font-family: var(--sans);
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all .15s;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
   .btn-secondary:hover { background: var(--border); color: var(--text); }
 
   .info-box { background: var(--accent-bg); border: 1px solid #bfdbfe; border-radius: 10px; padding: 12px 14px; font-size: 12px; color: #1d4ed8; margin-top: 14px; line-height: 1.55; }
@@ -86,12 +157,10 @@
   .err-box { background: var(--danger-bg); border: 1px solid #fecaca; border-radius: 10px; padding: 11px 14px; font-size: 12px; color: var(--danger); margin-bottom: 12px; display: none; line-height: 1.5; }
   .err-box.show { display: block; }
 
-  /* DB badge di bawah form */
   .db-badge { display: inline-flex; align-items: center; gap: 5px; background: #ecfdf5; border: 1px solid #a7f3d0; color: #065f46; border-radius: 20px; padding: 4px 10px; font-size: 11px; font-weight: 600; margin-bottom: 14px; }
   .db-dot { width: 6px; height: 6px; background: #10b981; border-radius: 50%; animation: pulse 1.5s ease infinite; }
   @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
 
-  /* ── EXAM SCREEN ── */
   .exam-screen { display: none; flex-direction: column; height: 100vh; height: 100dvh; overflow: hidden; position: relative; }
 
   .exam-header { background: var(--white); border-bottom: 1px solid var(--border); flex-shrink: 0; z-index: 50; transition: max-height .35s cubic-bezier(.4,0,.2,1); overflow: hidden; }
@@ -131,6 +200,113 @@
   .status-indicator.danger  { background: var(--danger-bg);  color: var(--danger);  border: 1px solid #fecaca; }
   .status-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; animation: pulse 1.5s ease infinite; }
 
+  /* ── TOMBOL SELESAI ── */
+  .btn-selesai-wrapper { grid-column: 1 / -1; }
+  .btn-selesai {
+    width: 100%; padding: 11px 14px; background: linear-gradient(135deg, #10b981, #059669);
+    color: white; border: none; border-radius: 10px;
+    font-family: var(--sans); font-size: 13px; font-weight: 700;
+    cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 7px;
+    transition: all .15s; box-shadow: 0 2px 8px rgba(16,185,129,.25);
+    -webkit-tap-highlight-color: transparent;
+  }
+  .btn-selesai:hover { background: linear-gradient(135deg, #059669, #047857); transform: translateY(-1px); box-shadow: 0 4px 14px rgba(16,185,129,.35); }
+  .btn-selesai:active { transform: translateY(0); }
+  .btn-selesai svg { width: 15px; height: 15px; }
+
+  /* ── KONFIRMASI SELESAI MODAL ── */
+  .confirm-modal-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(4px);
+    z-index: 998; align-items: center; justify-content: center; padding: 20px;
+    animation: fadeIn .2s ease;
+  }
+  .confirm-modal-overlay.show { display: flex; }
+  @keyframes fadeIn { from{opacity:0} to{opacity:1} }
+  .confirm-modal {
+    background: var(--white); border-radius: 20px; padding: 28px 24px;
+    width: 100%; max-width: 360px; text-align: center;
+    box-shadow: 0 20px 60px rgba(0,0,0,.2);
+    animation: slideUp .25s cubic-bezier(.34,1.56,.64,1);
+  }
+  @keyframes slideUp { from{transform:translateY(20px);opacity:0} to{transform:translateY(0);opacity:1} }
+  .confirm-modal-icon {
+    width: 64px; height: 64px; background: var(--success-bg); border-radius: 50%;
+    display: flex; align-items: center; justify-content: center; margin: 0 auto 16px;
+  }
+  .confirm-modal-icon svg { width: 30px; height: 30px; color: var(--success); }
+  .confirm-modal-title { font-size: 18px; font-weight: 700; margin-bottom: 8px; }
+  .confirm-modal-msg { font-size: 13px; color: var(--muted); line-height: 1.6; margin-bottom: 20px; }
+  .confirm-modal-actions { display: flex; gap: 10px; }
+  .confirm-modal-actions .btn-cancel {
+    flex: 1; padding: 11px; background: var(--bg); color: var(--muted);
+    border: 1.5px solid var(--border); border-radius: 10px;
+    font-family: var(--sans); font-size: 14px; font-weight: 600; cursor: pointer; transition: all .15s;
+  }
+  .confirm-modal-actions .btn-cancel:hover { background: var(--border); }
+  .confirm-modal-actions .btn-confirm {
+    flex: 1; padding: 11px; background: var(--success); color: white;
+    border: none; border-radius: 10px;
+    font-family: var(--sans); font-size: 14px; font-weight: 600; cursor: pointer; transition: all .15s;
+  }
+  .confirm-modal-actions .btn-confirm:hover { background: #059669; }
+
+  /* ── NOTIFIKASI SELESAI ── */
+  .done-notification {
+    display: none; position: fixed; inset: 0;
+    background: linear-gradient(135deg, #059669 0%, #10b981 40%, #34d399 100%);
+    z-index: 1000; flex-direction: column; align-items: center; justify-content: center;
+    text-align: center; padding: 32px;
+    animation: fadeInScale .4s cubic-bezier(.34,1.56,.64,1);
+  }
+  .done-notification.show { display: flex; }
+  @keyframes fadeInScale { from{opacity:0;transform:scale(.95)} to{opacity:1;transform:scale(1)} }
+
+  .done-checkmark {
+    width: 100px; height: 100px; background: rgba(255,255,255,.2); border-radius: 50%;
+    display: flex; align-items: center; justify-content: center; margin-bottom: 24px;
+    animation: checkPop .5s cubic-bezier(.34,1.56,.64,1) .2s both;
+  }
+  @keyframes checkPop { from{transform:scale(0);opacity:0} to{transform:scale(1);opacity:1} }
+  .done-checkmark svg { width: 50px; height: 50px; color: white; }
+
+  .done-title {
+    font-size: 30px; font-weight: 700; color: white; margin-bottom: 10px;
+    animation: slideUpFade .4s ease .3s both;
+  }
+  .done-subtitle {
+    font-size: 16px; color: rgba(255,255,255,.85); line-height: 1.6; margin-bottom: 28px;
+    animation: slideUpFade .4s ease .4s both;
+  }
+  @keyframes slideUpFade { from{transform:translateY(14px);opacity:0} to{transform:translateY(0);opacity:1} }
+
+  .done-info-row {
+    display: flex; flex-direction: column; gap: 8px; width: 100%; max-width: 320px;
+    animation: slideUpFade .4s ease .5s both;
+  }
+  .done-info-item {
+    background: rgba(255,255,255,.18); border: 1px solid rgba(255,255,255,.3);
+    border-radius: 10px; padding: 10px 16px; display: flex; justify-content: space-between; align-items: center;
+  }
+  .done-info-key { font-size: 12px; color: rgba(255,255,255,.7); font-weight: 500; }
+  .done-info-val { font-size: 13px; color: white; font-weight: 700; }
+
+  .done-countdown {
+    margin-top: 28px; font-size: 13px; color: rgba(255,255,255,.7);
+    animation: slideUpFade .4s ease .6s both;
+  }
+  .done-countdown-num { font-size: 20px; font-weight: 700; color: white; display: block; margin-top: 4px; }
+
+  /* Countdown ring */
+  .done-countdown-ring { position: relative; display: inline-block; margin-top: 6px; }
+  .done-countdown-ring svg { transform: rotate(-90deg); }
+  .done-countdown-ring .ring-bg { fill: none; stroke: rgba(255,255,255,.2); stroke-width: 4; }
+  .done-countdown-ring .ring-fill { fill: none; stroke: white; stroke-width: 4; stroke-linecap: round; transition: stroke-dashoffset .9s linear; }
+  .done-countdown-ring .ring-num {
+    position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+    font-size: 18px; font-weight: 700; color: white;
+  }
+
   .webview-wrapper { flex: 1; display: flex; flex-direction: column; overflow: hidden; position: relative; }
   .webview-frame { width: 100%; height: 100%; border: none; display: block; }
   .iframe-loading { position: absolute; inset: 0; background: var(--bg); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; z-index: 5; transition: opacity .3s; }
@@ -152,15 +328,111 @@
   .timer-badge-sm.danger { background: var(--danger-bg); border-color: #fecaca; color: var(--danger); animation: timerPulse 1s ease infinite; }
   @keyframes timerPulse { 0%,100%{opacity:1} 50%{opacity:.7} }
 
-  @media (max-width: 480px) {
-    .login-card { padding: 24px 20px; }
+  /* MOBILE OPTIMIZATION */
+  @media (max-width: 768px) {
+    body { font-size: 16px; } /* Prevent zoom on iOS */
+    .login-card { padding: 24px 18px; width: 95%; }
     .form-row { grid-template-columns: 1fr; gap: 14px; }
+    .btn-primary, .btn-secondary, .btn-selesai {
+      min-height: 44px; /* Touch-friendly size */
+      font-size: 14px;
+    }
+    input[type="text"], select {
+      min-height: 44px;
+      font-size: 16px; /* Prevent zoom on iOS */
+    }
+    label { font-size: 13px; }
+    .login-title { font-size: 18px; }
+    .login-sub { font-size: 12px; }
+    .step-indicator { margin-bottom: 18px; }
+    .step-num { width: 22px; height: 22px; font-size: 10px; }
+    .info-box { font-size: 11px; padding: 10px 12px; }
+    .err-box { font-size: 11px; padding: 10px 12px; }
+  }
+
+  @media (max-width: 480px) {
+    .login-card { padding: 20px 16px; max-width: 100%; }
+    .login-logo { margin-bottom: 18px; }
+    .login-logo-icon { width: 48px; height: 48px; margin: 0 auto 10px; }
+    .login-logo-icon svg { width: 22px; height: 22px; }
+    .login-title { font-size: 16px; margin-bottom: 2px; }
+    .login-sub { font-size: 11px; }
+    .step-indicator { gap: 0; margin-bottom: 16px; }
+    .step-item { flex: 1; }
+    .step-num { width: 20px; height: 20px; font-size: 9px; }
+    .step-label { font-size: 9px; }
+    .step-line { margin: 0 4px; }
+    .form-group { margin-bottom: 12px; }
+    .form-row { gap: 10px; margin-bottom: 12px; }
+    label { font-size: 12px; margin-bottom: 4px; }
+    input[type="text"], select { padding: 10px 12px; font-size: 16px; }
+    .room-code-input { padding: 12px 14px; font-size: 18px; letter-spacing: 4px; }
+    .btn-primary, .btn-secondary { padding: 12px; font-size: 13px; min-height: 44px; }
+    .btn-selesai { padding: 10px 12px; font-size: 12px; gap: 5px; }
+    .info-box { font-size: 11px; padding: 10px 12px; margin-top: 12px; }
+    .err-box { font-size: 11px; padding: 10px 12px; margin-bottom: 10px; }
+    .db-badge { font-size: 10px; padding: 3px 8px; }
+    
+    /* Header mobile */
+    :root { --header-collapsed-h: 44px; }
+    .header-collapsed-bar { padding: 0 10px; height: 44px; }
+    .collapsed-name { font-size: 12px; }
+    .timer-badge-sm { font-size: 12px; padding: 3px 8px; }
+    .timer-badge-sm svg { width: 11px; height: 11px; }
+    .violation-badge-sm { padding: 3px 7px; font-size: 10px; }
+    .toggle-btn { width: 28px; height: 28px; }
+    .toggle-btn svg { width: 12px; height: 12px; }
+    
+    /* Header detail mobile */
+    .header-detail { padding: 0 10px 10px; gap: 6px; }
+    .detail-card { padding: 8px 10px; }
+    .detail-label { font-size: 9px; }
+    .detail-value { font-size: 12px; }
+    
+    /* Modal mobile */
+    .confirm-modal, .password-modal { max-width: 90%; padding: 24px 20px; }
+    .confirm-modal-title, .password-modal-title { font-size: 16px; }
+    .confirm-modal-msg, .password-modal-msg { font-size: 12px; }
+    .confirm-modal-actions, .password-modal-actions { gap: 8px; }
+    .confirm-modal-actions button, .password-modal-actions button { padding: 10px; font-size: 13px; }
+    .password-input { padding: 11px 12px; font-size: 16px; }
+    .password-error { font-size: 11px; }
+    
+    /* Warning overlay mobile */
+    .warning-overlay { padding: 20px; }
+    .warning-icon { width: 64px; height: 64px; margin-bottom: 16px; }
+    .warning-icon svg { width: 32px; height: 32px; }
+    .warning-title { font-size: 20px; }
+    .warning-msg { font-size: 13px; }
+    .warning-count { font-size: 12px; padding: 6px 14px; }
+    
+    /* Done notification mobile */
+    .done-notification { padding: 24px; }
+    .done-checkmark { width: 80px; height: 80px; margin-bottom: 16px; }
+    .done-checkmark svg { width: 40px; height: 40px; }
+    .done-title { font-size: 24px; margin-bottom: 8px; }
+    .done-subtitle { font-size: 14px; margin-bottom: 20px; }
+    .done-info-row { max-width: 100%; gap: 6px; }
+    .done-info-item { padding: 8px 12px; }
+    .done-info-key { font-size: 11px; }
+    .done-info-val { font-size: 12px; }
+    .done-countdown { margin-top: 20px; font-size: 12px; }
+    .done-countdown-ring svg { width: 48px; height: 48px; }
+    .done-countdown-ring .ring-num { font-size: 16px; }
+  }
+
+  @media (max-width: 360px) {
+    .login-card { padding: 16px 12px; }
+    .login-logo-icon { width: 40px; height: 40px; }
+    .login-title { font-size: 15px; }
+    .room-code-input { padding: 10px 12px; font-size: 16px; letter-spacing: 3px; }
+    .btn-primary, .btn-secondary { padding: 11px; font-size: 12px; }
   }
 </style>
 </head>
 <body>
 
-<!-- ══ LOGIN SCREEN ══ -->
+<!-- LOGIN SCREEN -->
 <div class="login-screen" id="loginScreen">
   <div class="login-card">
     <div class="login-logo">
@@ -171,7 +443,6 @@
       <div class="login-sub">Masukkan kode room dari pengawas</div>
     </div>
 
-    <!-- Step indicator -->
     <div class="step-indicator">
       <div class="step-item">
         <div class="step-num active" id="step1Num">1</div>
@@ -184,11 +455,11 @@
       </div>
     </div>
 
-    <!-- STEP 1: Room Code -->
+    <!-- STEP 1 -->
     <div class="form-step active" id="formStep1">
       <div class="db-badge">
         <div class="db-dot"></div>
-        Terhubung ke: SERVER PUSAT
+        Terhubung ke: FIRESTORE
       </div>
 
       <div class="form-group">
@@ -215,7 +486,7 @@
       <div class="info-box"><strong>💡 Cara Masuk</strong>Mintalah kode room dari pengawas/guru, lalu masukkan kodenya di atas.</div>
     </div>
 
-    <!-- STEP 2: Data Diri -->
+    <!-- STEP 2 -->
     <div class="form-step" id="formStep2">
       <div class="form-group"><label for="inputNama">Nama Lengkap</label><input type="text" id="inputNama" placeholder="Masukkan nama lengkap kamu" autocomplete="off"></div>
       <div class="form-group"><label for="inputId">Nomor Peserta</label><input type="text" id="inputId" placeholder="Contoh: 12345" autocomplete="off" inputmode="numeric"></div>
@@ -223,66 +494,25 @@
         <div>
           <label for="inputKelas">Kelas</label>
           <div class="select-wrapper"><select id="inputKelas"><option value="">-- Pilih Kelas --</option>
-            <option>VII-A</option>
-            <option>VII-B</option>
-            <option>VII-C</option>
-            <option>VII-D</option>
-            <option>VII-E</option>
-            <option>VII-F</option>
-            <option>VII-G</option>
-            <option>VII-H</option>
-            <option>VII-I</option>
-            <option>VII-J</option>
-            <option>VII-K</option>
-            <option>VIII-A</option>
-            <option>VIII-B</option>
-            <option>VIII-C</option>
-            <option>VIII-D</option>
-            <option>VIII-E</option>
-            <option>VIII-F</option>
-            <option>VIII-G</option>
-            <option>VIII-H</option>
-            <option>VIII-I</option>
-            <option>VIII-J</option>
-            <option>VIII-K</option>
-            <option>IX-L</option>
-            <option>IX-A</option>
-            <option>IX-B</option>
-            <option>IX-C</option>
-            <option>IX-D</option>
-            <option>IX-E</option>
-            <option>IX-F</option>
-            <option>IX-G</option>
-            <option>IX-H</option>
-            <option>IX-I</option>
-            <option>IX-J</option>
-            <option>IX-K</option>
-            <option>IX-L</option>
+            <option>VII-A</option><option>VII-B</option><option>VII-C</option><option>VII-D</option>
+            <option>VII-E</option><option>VII-F</option><option>VII-G</option><option>VII-H</option>
+            <option>VII-I</option><option>VII-J</option><option>VII-K</option>
+            <option>VIII-A</option><option>VIII-B</option><option>VIII-C</option><option>VIII-D</option>
+            <option>VIII-E</option><option>VIII-F</option><option>VIII-G</option><option>VIII-H</option>
+            <option>VIII-I</option><option>VIII-J</option><option>VIII-K</option>
+            <option>IX-L</option><option>IX-A</option><option>IX-B</option><option>IX-C</option>
+            <option>IX-D</option><option>IX-E</option><option>IX-F</option><option>IX-G</option>
+            <option>IX-H</option><option>IX-I</option><option>IX-J</option><option>IX-K</option><option>IX-L</option>
           </select></div>
         </div>
         <div>
           <label for="inputRuangan">Ruangan</label>
           <div class="select-wrapper"><select id="inputRuangan"><option value="">-- Pilih Ruangan --</option>
-            <option>Ruang 01</option>
-            <option>Ruang 02</option>
-            <option>Ruang 03</option>
-            <option>Ruang 04</option>
-            <option>Ruang 05</option>
-            <option>Ruang 06</option>
-            <option>Ruang 07</option>
-            <option>Ruang 08</option>
-            <option>Ruang 09</option>
-            <option>Ruang 10</option>
-            <option>Ruang 11</option>
-            <option>Ruang 12</option>
-            <option>Ruang 13</option>
-            <option>Ruang 14</option>
-            <option>Ruang 15</option>
-            <option>Ruang 16</option>
-            <option>Ruang 17</option>
-            <option>Ruang 18</option>
-            <option>Ruang 19</option>
-            <option>Ruang 20</option>
+            <option>Ruang 01</option><option>Ruang 02</option><option>Ruang 03</option><option>Ruang 04</option>
+            <option>Ruang 05</option><option>Ruang 06</option><option>Ruang 07</option><option>Ruang 08</option>
+            <option>Ruang 09</option><option>Ruang 10</option><option>Ruang 11</option><option>Ruang 12</option>
+            <option>Ruang 13</option><option>Ruang 14</option><option>Ruang 15</option><option>Ruang 16</option>
+            <option>Ruang 17</option><option>Ruang 18</option><option>Ruang 19</option><option>Ruang 20</option>
           </select></div>
         </div>
       </div>
@@ -293,7 +523,7 @@
   </div>
 </div>
 
-<!-- ══ EXAM SCREEN ══ -->
+<!-- EXAM SCREEN -->
 <div class="exam-screen" id="examScreen">
   <header class="exam-header" id="examHeader">
     <div class="header-collapsed-bar">
@@ -319,20 +549,18 @@
       <div class="detail-card"><div class="detail-label">Kelas</div><div class="detail-value" id="displayKelas">—</div></div>
       <div class="detail-card"><div class="detail-label">Ruangan</div><div class="detail-value" id="displayRuangan">—</div></div>
 
-      <div class="url-display-card">
-        <div class="url-display-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
-        </div>
-        <div class="url-display-texts">
-          <div class="url-display-label">Soal Ujian</div>
-          <div class="url-display-value" id="displayExamUrl">—</div>
-        </div>
-        <div class="url-room-badge" id="displayRoomCode">—</div>
-      </div>
-
+      
       <div class="status-indicator aman full" id="statusIndicator">
         <div class="status-dot"></div>
         <span id="statusText">Sedang Ujian</span>
+      </div>
+
+      <!-- TOMBOL SELESAI -->
+      <div class="btn-selesai-wrapper">
+        <button class="btn-selesai" onclick="konfirmasiSelesai()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+          Selesai &amp; Kembali ke Room
+        </button>
       </div>
     </div>
   </header>
@@ -357,74 +585,312 @@
   <div class="warning-count" id="warningCount">Pelanggaran ke-1</div>
 </div>
 
+<!-- KONFIRMASI SELESAI MODAL -->
+<div class="confirm-modal-overlay" id="confirmModal">
+  <div class="confirm-modal">
+    <div class="confirm-modal-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+    </div>
+    <div class="confirm-modal-title">Akhiri Ujian?</div>
+    <div class="confirm-modal-msg">Kamu akan mengakhiri sesi ujian ini</div>
+    <div class="confirm-modal-actions">
+      <button class="btn-cancel" onclick="tutupKonfirmasi()">Batal</button>
+      <button class="btn-confirm" onclick="selesaiManual()">Ya, Selesai</button>
+    </div>
+  </div>
+</div>
+
+<!-- NOTIFIKASI SELESAI -->
+<div class="done-notification" id="doneNotification">
+  <div class="done-checkmark">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+  </div>
+  <div class="done-title">Ujian Selesai! 🎉</div>
+  <div class="done-subtitle">Jawaban kamu telah berhasil dikumpulkan.<br>Terima kasih sudah mengerjakan dengan baik.</div>
+
+  <div class="done-info-row">
+    <div class="done-info-item">
+      <span class="done-info-key">Nama</span>
+      <span class="done-info-val" id="doneNama">—</span>
+    </div>
+    <div class="done-info-item">
+      <span class="done-info-key">Kelas</span>
+      <span class="done-info-val" id="doneKelas">—</span>
+    </div>
+    <div class="done-info-item">
+      <span class="done-info-key">Ruangan</span>
+      <span class="done-info-val" id="doneRuangan">—</span>
+    </div>
+    <div class="done-info-item">
+      <span class="done-info-key">Pelanggaran Tercatat</span>
+      <span class="done-info-val" id="doneViolations">0</span>
+    </div>
+  </div>
+
+  <div class="done-countdown">
+    Kembali ke halaman utama dalam...
+    <div class="done-countdown-ring" id="countdownRingWrapper">
+      <svg width="56" height="56" viewBox="0 0 56 56">
+        <circle class="ring-bg" cx="28" cy="28" r="22"/>
+        <circle class="ring-fill" id="ringFill" cx="28" cy="28" r="22"
+          stroke-dasharray="138.2" stroke-dashoffset="0"/>
+      </svg>
+      <div class="ring-num" id="countdownNum">5</div>
+    </div>
+  </div>
+</div>
+
 <script>
   /* ══════════════════════════════════════════
-     FIREBASE CONFIG — SINGLE INSTANCE
+     FIREBASE CONFIG
   ══════════════════════════════════════════ */
   const FIREBASE_CONFIG = {
-    apiKey: "AIzaSyAKtNE0UmdQADg0Z-fr5RAC2G1WmWYFZiA",
-    authDomain: "pengawas-asaj.firebaseapp.com",
-    projectId: "pengawas-asaj",
-    storageBucket: "pengawas-asaj.firebasestorage.app",
-    messagingSenderId: "595402624997",
-    appId: "1:595402624997:web:e04cb35e6ad2def860690c",
-    databaseURL: "https://pengawas-asaj-default-rtdb.asia-southeast1.firebasedatabase.app/"
+    apiKey: "AIzaSyCQuIw5-2y12-79gPry_wsPNrzFEtR5NQE",
+    authDomain: "pengawas-asaj78.firebaseapp.com",
+    projectId: "pengawas-asaj78",
+    storageBucket: "pengawas-asaj78.firebasestorage.app",
+    messagingSenderId: "49121448919",
+    appId: "1:49121448919:web:fa35d0b4e1d857b1fdf192"
   };
 
   /* ── STATE ── */
-  let db = null, firebaseApp = null, pesertaRef = null, examUrlRef = null;
+  let db = null, firebaseApp = null;
+  let pesertaDocRef = null, examUrlUnsubscribe = null;
   let pesertaNama='', pesertaId='', pesertaKelas='', pesertaRuangan='';
   let roomCode='', roomName='', examUrl='';
   let violations=0, timerSeconds=90*60, timerInterval;
   let foundRoomData = null;
+  let pesertaDocId = '';
+  let monitoringActive = false; /* flag untuk kontrol monitoring */
 
-  /* ── INIT FIREBASE (sekali saat load) ── */
+  /* ── INIT FIREBASE ── */
   firebaseApp = firebase.initializeApp(FIREBASE_CONFIG);
-  db = firebaseApp.database();
+  db = firebaseApp.firestore();
 
-  /* ── AUDIO ── */
-  let _audioCtx=null, _gainNode=null;
+  /* ══════════════════════════════════════════
+     AUDIO SYSTEM — MOBILE-COMPATIBLE
+  ══════════════════════════════════════════ */
+  let _audioCtx        = null;
+  let _masterGain      = null;
+  let _audioUnlocked   = false;
 
-  function unlockAudio() {
-    try {
-      _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-      _gainNode = _audioCtx.createGain(); _gainNode.gain.value=10.0; _gainNode.connect(_audioCtx.destination);
-      const buf=_audioCtx.createBuffer(1,1,22050),src=_audioCtx.createBufferSource(); src.buffer=buf; src.connect(_gainNode); src.start(0);
-      const silOsc=_audioCtx.createOscillator(),silGain=_audioCtx.createGain(); silGain.gain.value=0.00001; silOsc.connect(silGain); silGain.connect(_gainNode); silOsc.frequency.value=1; silOsc.start();
-    } catch(e) {}
-    try { window.speechSynthesis.cancel(); const wu=new SpeechSynthesisUtterance(''); wu.volume=0; window.speechSynthesis.speak(wu); } catch(e) {}
-  }
+  let _alertActive     = false;
+  let _alertVolume     = 0.05;
+  let _alertStep       = 0.05;
+  let _alertEscTimer   = null;
+  let _alertBeepTimer  = null;
+  let _alertTtsTimer   = null;
 
-  function boostAndSpeak(text) {
+  function _initAudio() {
     if (_audioCtx) {
-      if (_audioCtx.state==='suspended') _audioCtx.resume().catch(()=>{});
-      try {
-        const sr=_audioCtx.sampleRate,buf=_audioCtx.createBuffer(1,Math.floor(sr*.08),sr),data=buf.getChannelData(0);
-        for(let i=0;i<data.length;i++) data[i]=(Math.random()*2-1)*.0002;
-        const burst=_audioCtx.createBufferSource(),bGain=_audioCtx.createGain(); bGain.gain.value=8.0;
-        burst.buffer=buf; burst.connect(bGain); bGain.connect(_gainNode||_audioCtx.destination); burst.start();
-      } catch(e) {}
+      if (_audioCtx.state === 'suspended') { _audioCtx.resume().catch(() => {}); }
+      return;
     }
     try {
-      window.speechSynthesis.cancel(); let attempt=0;
-      const trySpeak=()=>{
-        const u=new SpeechSynthesisUtterance(text); u.lang='id-ID'; u.volume=1; u.rate=0.85; u.pitch=1.1;
-        const voices=window.speechSynthesis.getVoices(),idV=voices.find(v=>v.lang.startsWith('id'));
-        if(idV) u.voice=idV;
-        u.onerror=()=>{ if(attempt<2){attempt++;setTimeout(trySpeak,400);} };
+      _audioCtx   = new (window.AudioContext || window.webkitAudioContext)();
+      _masterGain = _audioCtx.createGain();
+      _masterGain.gain.value = 0.0001;
+      _masterGain.connect(_audioCtx.destination);
+      const silBuf = _audioCtx.createBuffer(1, 1, _audioCtx.sampleRate);
+      const silSrc = _audioCtx.createBufferSource();
+      silSrc.buffer = silBuf;
+      silSrc.connect(_masterGain);
+      silSrc.start(0);
+      _audioUnlocked = true;
+    } catch (e) { console.warn('_initAudio error:', e); }
+  }
+
+  function unlockAudio() {
+    _initAudio();
+    try {
+      window.speechSynthesis.cancel();
+      const wu = new SpeechSynthesisUtterance('');
+      wu.volume = 0;
+      window.speechSynthesis.speak(wu);
+    } catch (e) {}
+  }
+
+  function _playBeep(volume) {
+    if (!_audioCtx) return;
+    if (_audioCtx.state === 'suspended') { _audioCtx.resume().catch(() => {}); return; }
+    try {
+      const now  = _audioCtx.currentTime;
+      const osc1 = _audioCtx.createOscillator();
+      const osc2 = _audioCtx.createOscillator();
+      const gain = _audioCtx.createGain();
+      const lfo  = _audioCtx.createOscillator();
+      
+      // Setup LFO (Low Frequency Oscillator) untuk modulation
+      const lfoGain = _audioCtx.createGain();
+      lfo.frequency.setValueAtTime(3, now); // 3 Hz modulation
+      lfoGain.gain.setValueAtTime(350, now); // Modulation depth
+      lfo.connect(lfoGain);
+      
+      // Oscillator 1 - high frequency base
+      osc1.type = 'sine';
+      osc1.frequency.setValueAtTime(1000, now);
+      lfoGain.connect(osc1.frequency);
+      
+      // Oscillator 2 - low frequency base
+      osc2.type = 'sine';
+      osc2.frequency.setValueAtTime(600, now);
+      
+      // Setup gain envelope
+      gain.gain.setValueAtTime(0, now);
+      gain.gain.linearRampToValueAtTime(volume, now + 0.05);
+      gain.gain.setValueAtTime(volume, now + 0.6);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.8);
+      
+      // Connect everything
+      osc1.connect(gain);
+      osc2.connect(gain);
+      gain.connect(_audioCtx.destination);
+      
+      // Start oscillators
+      osc1.start(now);
+      osc2.start(now);
+      lfo.start(now);
+      
+      // Stop oscillators
+      osc1.stop(now + 0.8);
+      osc2.stop(now + 0.8);
+      lfo.stop(now + 0.8);
+    } catch (e) {}
+  }
+
+  function _speakTTS(text, volume) {
+    if (!window.speechSynthesis) return;
+    try {
+      window.speechSynthesis.cancel();
+      const u  = new SpeechSynthesisUtterance(text);
+      u.lang   = 'id-ID';
+      u.volume = Math.min(volume + 0.2, 1.0);
+      u.rate   = 0.85;
+      u.pitch  = 1.1;
+      u.onerror = () => {};
+      const applyVoice = () => {
+        const voices  = window.speechSynthesis.getVoices();
+        const idVoice = voices.find(v => v.lang.startsWith('id')) || voices.find(v => v.lang.startsWith('ms'));
+        if (idVoice) u.voice = idVoice;
         window.speechSynthesis.speak(u);
       };
-      if(window.speechSynthesis.getVoices().length===0){window.speechSynthesis.addEventListener('voiceschanged',trySpeak,{once:true});setTimeout(trySpeak,600);}else trySpeak();
-    } catch(e) {}
+      if (window.speechSynthesis.getVoices().length === 0) {
+        window.speechSynthesis.addEventListener('voiceschanged', applyVoice, { once: true });
+        setTimeout(applyVoice, 500);
+      } else { applyVoice(); }
+    } catch (e) {}
   }
-  function speakAlert(text) { boostAndSpeak(text); }
+
+  function speakOnBtn(text) { _initAudio(); _speakTTS(text, 1.0); }
+
+  function startEscalatingAlert() {
+    if (_alertActive) return;
+    _alertActive  = true;
+    _alertVolume  = 0.3;
+    if (_audioCtx && _audioCtx.state === 'suspended') { _audioCtx.resume().catch(() => {}); }
+    
+    // Beep Pattern: 10 seconds ON, 30 seconds OFF, repeat (40 second cycle)
+    const SOUND_ON_DURATION = 10000;   // 10 seconds
+    const SOUND_OFF_DURATION = 30000;  // 30 seconds
+    const SOUND_CYCLE_DURATION = SOUND_ON_DURATION + SOUND_OFF_DURATION; // 40 seconds total
+    
+    // TTS Pattern: 10 seconds ON, 20 seconds OFF, repeat (30 second cycle)
+    const TTS_ON_DURATION = 10000;     // 10 seconds
+    const TTS_OFF_DURATION = 20000;    // 20 seconds (pause)
+    const TTS_CYCLE_DURATION = TTS_ON_DURATION + TTS_OFF_DURATION; // 30 seconds total
+    
+    let soundIsPlaying = true;
+    let ttsIsPlaying = true;
+    let soundCycleStartTime = Date.now();
+    let ttsCycleStartTime = Date.now();
+    
+    function updateSoundState() {
+      if (!_alertActive) return;
+      
+      const elapsedInSoundCycle = (Date.now() - soundCycleStartTime) % SOUND_CYCLE_DURATION;
+      const shouldPlay = elapsedInSoundCycle < SOUND_ON_DURATION;
+      
+      if (shouldPlay && !soundIsPlaying) {
+        soundIsPlaying = true;
+        _alertBeepTimer = setInterval(() => {
+          if (!_alertActive || !soundIsPlaying) return;
+          _playBeep(_alertVolume);
+        }, 600);
+      } else if (!shouldPlay && soundIsPlaying) {
+        soundIsPlaying = false;
+        if (_alertBeepTimer) {
+          clearInterval(_alertBeepTimer);
+          _alertBeepTimer = null;
+        }
+      }
+    }
+    
+    function updateTtsState() {
+      if (!_alertActive) return;
+      
+      const elapsedInTtsCycle = (Date.now() - ttsCycleStartTime) % TTS_CYCLE_DURATION;
+      const shouldPlayTts = elapsedInTtsCycle < TTS_ON_DURATION;
+      
+      if (shouldPlayTts && !ttsIsPlaying) {
+        ttsIsPlaying = true;
+        _speakTTS('ANDA MEMBUKA APLIKASI LAIN', _alertVolume);
+        _alertTtsTimer = setInterval(() => {
+          if (!_alertActive || !ttsIsPlaying) return;
+          _speakTTS('ANDA MEMBUKA APLIKASI LAIN', _alertVolume);
+        }, 2500);
+      } else if (!shouldPlayTts && ttsIsPlaying) {
+        ttsIsPlaying = false;
+        if (_alertTtsTimer) {
+          clearInterval(_alertTtsTimer);
+          _alertTtsTimer = null;
+        }
+        try { window.speechSynthesis.cancel(); } catch (e) {}
+      }
+    }
+    
+    // Play initial beep and start pattern
+    _playBeep(_alertVolume);
+    _alertBeepTimer = setInterval(() => {
+      if (!_alertActive) { clearInterval(_alertBeepTimer); return; }
+      _playBeep(_alertVolume);
+    }, 600);
+    
+    // Check and update sound state every 100ms
+    _alertEscTimer = setInterval(() => {
+      updateSoundState();
+      updateTtsState();
+    }, 100);
+    
+    // Play initial TTS message
+    _speakTTS('ANDA MEMBUKA APLIKASI LAIN', _alertVolume);
+    _alertTtsTimer = setInterval(() => {
+      if (!_alertActive || !ttsIsPlaying) return;
+      _speakTTS('ANDA MEMBUKA APLIKASI LAIN', _alertVolume);
+    }, 2500);
+  }
+
+  function stopEscalatingAlert() {
+    _alertActive = false;
+    clearInterval(_alertEscTimer);
+    clearInterval(_alertBeepTimer);
+    clearInterval(_alertTtsTimer);
+    _alertEscTimer = _alertBeepTimer = _alertTtsTimer = null;
+    try { window.speechSynthesis.cancel(); } catch (e) {}
+  }
+
+  function speakAlert(text) {
+    _initAudio();
+    _playBeep(0.9);
+    setTimeout(() => _speakTTS(text, 1.0), 150);
+  }
 
   /* ══════════════════════════════════════════
      STEP 1 — ROOM CODE
   ══════════════════════════════════════════ */
   function onRoomCodeInput() {
-    const code = document.getElementById('inputRoomCode').value.trim().toUpperCase();
-    document.getElementById('inputRoomCode').value = code.replace(/[^A-Z0-9]/g,'');
+    const input = document.getElementById('inputRoomCode');
+    input.value = input.value.toUpperCase().replace(/[^A-Z0-9]/g,'');
+    const code = input.value.trim();
     document.getElementById('btnCekRoom').disabled = code.length < 4;
     document.getElementById('roomInfoBox').classList.remove('show');
     document.getElementById('errBox').classList.remove('show');
@@ -434,32 +900,33 @@
   async function cekRoom() {
     const code = document.getElementById('inputRoomCode').value.trim().toUpperCase();
     if (!code || code.length < 4) return;
-
+    speakOnBtn('Memeriksa kode room');
     const btn = document.getElementById('btnCekRoom');
     btn.disabled = true; btn.textContent = 'Memeriksa...';
-
     try {
-      const snap = await db.ref(`rooms/${code}`).get();
-      if (snap.exists()) {
-        foundRoomData = snap.val();
+      const docSnap = await db.collection('rooms').doc(code).get();
+      if (docSnap.exists) {
+        foundRoomData = docSnap.data();
         roomCode = code;
-
         document.getElementById('foundRoomName').textContent = foundRoomData.name || 'Room Ujian';
         document.getElementById('foundRoomUrl').textContent  = foundRoomData.examUrl || '(URL akan dimuat saat ujian)';
         document.getElementById('roomInfoBox').classList.add('show');
         document.getElementById('errBox').classList.remove('show');
-
+        speakOnBtn('Room ditemukan, silakan lanjutkan');
         setTimeout(lanjutKeStep2, 600);
       } else {
+        document.getElementById('errBox').textContent = 'Kode room tidak ditemukan. Periksa kode dan coba lagi.';
         document.getElementById('errBox').classList.add('show');
         document.getElementById('roomInfoBox').classList.remove('show');
         foundRoomData = null;
+        speakOnBtn('Kode room tidak ditemukan, coba lagi');
         btn.disabled = false; btn.textContent = 'Cek & Lanjutkan →';
       }
     } catch(e) {
       console.error(e);
       document.getElementById('errBox').textContent = 'Terjadi kesalahan koneksi. Coba lagi.';
       document.getElementById('errBox').classList.add('show');
+      speakOnBtn('Kesalahan koneksi, coba lagi');
       btn.disabled = false; btn.textContent = 'Cek & Lanjutkan →';
     }
   }
@@ -473,9 +940,11 @@
     document.getElementById('stepLine1').className  = 'step-line done';
     document.getElementById('step2Num').className   = 'step-num active';
     document.getElementById('step2Label').className = 'step-label active';
+    speakOnBtn('Silakan isi data diri kamu');
   }
 
   function kembaliKeStep1() {
+    speakOnBtn('Kembali ke halaman kode room');
     document.getElementById('formStep2').classList.remove('active');
     document.getElementById('formStep1').classList.add('active');
     document.getElementById('step1Num').className   = 'step-num active';
@@ -498,10 +967,12 @@
     const kelas   = document.getElementById('inputKelas').value;
     const ruangan = document.getElementById('inputRuangan').value;
 
-    if (!nama || !id)   { alert('Mohon isi nama dan nomor peserta.'); return; }
-    if (!kelas)         { alert('Mohon pilih kelas.'); return; }
-    if (!ruangan)       { alert('Mohon pilih ruangan.'); return; }
+    if (!nama || !id)   { speakOnBtn('Mohon isi nama dan nomor peserta'); alert('Mohon isi nama dan nomor peserta.'); return; }
+    if (!kelas)         { speakOnBtn('Mohon pilih kelas'); alert('Mohon pilih kelas.'); return; }
+    if (!ruangan)       { speakOnBtn('Mohon pilih ruangan'); alert('Mohon pilih ruangan.'); return; }
     if (!foundRoomData) { alert('Data room tidak valid. Kembali ke langkah 1.'); return; }
+
+    speakOnBtn('Ujian dimulai, selamat mengerjakan');
 
     pesertaNama    = nama;
     pesertaId      = id;
@@ -510,6 +981,8 @@
     roomName       = foundRoomData.name;
     examUrl        = foundRoomData.examUrl;
 
+    pesertaDocId = pesertaId.replace(/[^a-zA-Z0-9_-]/g,'_');
+
     document.getElementById('loginScreen').style.display = 'none';
     document.getElementById('examScreen').style.display  = 'flex';
     document.getElementById('collapsedName').textContent  = nama;
@@ -517,8 +990,7 @@
     document.getElementById('displayId').textContent      = id;
     document.getElementById('displayKelas').textContent   = kelas;
     document.getElementById('displayRuangan').textContent = ruangan;
-    document.getElementById('displayExamUrl').textContent = examUrl;
-    document.getElementById('displayRoomCode').textContent = roomCode;
+    
 
     document.getElementById('examFrame').src = examUrl;
 
@@ -530,116 +1002,321 @@
   }
 
   /* ══════════════════════════════════════════
-     FIREBASE — REGISTER & MONITORING
+     FIRESTORE — REGISTER & UPDATE
   ══════════════════════════════════════════ */
-  function registerPeserta() {
+  async function registerPeserta() {
     if (!db) return;
-    const key = pesertaId.replace(/[.#$[\]/]/g,'_');
-    pesertaRef = db.ref(`rooms/${roomCode}/peserta/${key}`);
-    pesertaRef.set({
-      id: pesertaId, nama: pesertaNama, kelas: pesertaKelas, ruangan: pesertaRuangan,
-      status: 'aman', violations: 0, joinedAt: Date.now(), lastUpdate: Date.now()
-    });
-    pesertaRef.onDisconnect().update({ status:'offline', lastUpdate: Date.now() });
+    try {
+      pesertaDocRef = db
+        .collection('rooms').doc(roomCode)
+        .collection('peserta').doc(pesertaDocId);
+      await pesertaDocRef.set({
+        id         : pesertaId,
+        nama       : pesertaNama,
+        kelas      : pesertaKelas,
+        ruangan    : pesertaRuangan,
+        status     : 'aman',
+        violations : 0,
+        joinedAt   : firebase.firestore.FieldValue.serverTimestamp(),
+        lastUpdate : firebase.firestore.FieldValue.serverTimestamp()
+      });
+    } catch(e) { console.error('registerPeserta error:', e); }
   }
 
   function listenRoomUrlChanges() {
     if (!db) return;
-    examUrlRef = db.ref(`rooms/${roomCode}/examUrl`);
-    examUrlRef.on('value', (snap) => {
-      const newUrl = snap.val();
-      if (newUrl && newUrl !== examUrl) {
-        examUrl = newUrl;
-        document.getElementById('displayExamUrl').textContent = examUrl;
-        document.getElementById('iframeLoading').style.display = 'flex';
-        document.getElementById('iframeLoading').classList.remove('hidden');
-        document.getElementById('examFrame').src = examUrl;
-      }
-    });
+    examUrlUnsubscribe = db.collection('rooms').doc(roomCode)
+      .onSnapshot((docSnap) => {
+        if (!docSnap.exists) return;
+        const data = docSnap.data();
+        const newUrl = data.examUrl;
+        if (newUrl && newUrl !== examUrl) {
+          examUrl = newUrl;
+          const loading = document.getElementById('iframeLoading');
+          loading.style.display = 'flex';
+          loading.classList.remove('hidden');
+          document.getElementById('examFrame').src = examUrl;
+        }
+      }, (err) => { console.error('listenRoomUrlChanges error:', err); });
   }
 
-  function updateStatus(status) {
-    if (pesertaRef) pesertaRef.update({ status, lastUpdate: Date.now() });
-    const indicator=document.getElementById('statusIndicator'),text=document.getElementById('statusText');
-    indicator.className='status-indicator full';
-    if(status==='aman'){indicator.classList.add('aman');text.textContent='Sedang Ujian';}
-    else if(status==='tab'){indicator.classList.add('warning');text.textContent='Buka Tab Lain';}
-    else if(status==='keluar'){indicator.classList.add('danger');text.textContent='Keluar Halaman';}
+  async function updateStatus(status) {
+    if (!monitoringActive) return; /* jangan update jika monitoring sudah dimatikan */
+    const indicator = document.getElementById('statusIndicator');
+    const text      = document.getElementById('statusText');
+    indicator.className = 'status-indicator full';
+    if (status === 'aman')        { indicator.classList.add('aman');    text.textContent = 'Sedang Ujian'; }
+    else if (status === 'tab')    { indicator.classList.add('warning'); text.textContent = 'Buka Tab Lain'; }
+    else if (status === 'keluar') { indicator.classList.add('danger');  text.textContent = 'Keluar Halaman'; }
+
+    if (pesertaDocRef) {
+      try {
+        await pesertaDocRef.update({ status, lastUpdate: firebase.firestore.FieldValue.serverTimestamp() });
+      } catch(e) { console.error('updateStatus error:', e); }
+    }
   }
 
-  function addViolation(type) {
+  async function addViolation(type) {
+    if (!monitoringActive) return; /* abaikan pelanggaran jika monitoring mati */
     violations++;
-    if (pesertaRef) pesertaRef.update({ violations });
+    if (pesertaDocRef) {
+      try {
+        await pesertaDocRef.update({
+          violations : firebase.firestore.FieldValue.increment(1),
+          lastUpdate : firebase.firestore.FieldValue.serverTimestamp()
+        });
+      } catch(e) { console.error('addViolation error:', e); }
+    }
     document.getElementById('violationCount').textContent = violations;
     showWarning(type);
   }
 
   function showWarning(type) {
-    const overlay=document.getElementById('warningOverlay');
-    document.getElementById('warningTitle').textContent = type==='tab' ? 'Tab Lain Terdeteksi!' : 'Keluar dari Halaman!';
-    document.getElementById('warningMsg').textContent   = type==='tab' ? 'Kamu membuka tab atau window lain saat ujian. Tindakan ini telah dicatat.' : 'Kamu meninggalkan halaman ujian. Tindakan ini telah dicatat.';
+    const overlay = document.getElementById('warningOverlay');
+    document.getElementById('warningTitle').textContent = type === 'tab' ? 'Tab Lain Terdeteksi!' : 'Keluar dari Halaman!';
+    document.getElementById('warningMsg').textContent   = type === 'tab'
+      ? 'Kamu membuka tab atau window lain saat ujian. Tindakan ini telah dicatat.'
+      : 'Kamu meninggalkan halaman ujian. Tindakan ini telah dicatat.';
     document.getElementById('warningCount').textContent = `Pelanggaran ke-${violations}`;
     overlay.classList.add('show');
-    const ttsText = type==='tab' ? 'PERHATIAN! Kamu membuka tab lain!' : 'PERHATIAN! Kamu keluar dari halaman ujian!';
-    setTimeout(()=>speakAlert(ttsText), 400);
-    setTimeout(()=>overlay.classList.remove('show'), 3500);
+    setTimeout(()=> overlay.classList.remove('show'), 3500);
   }
 
+  /* ══════════════════════════════════════════
+     MONITORING
+  ══════════════════════════════════════════ */
   function setupMonitoring() {
-    document.addEventListener('visibilitychange',()=>{
-      if(document.hidden){updateStatus('tab');addViolation('tab');}else{updateStatus('aman');}
+    monitoringActive = true;
+
+    document.addEventListener('visibilitychange', () => {
+      if (!monitoringActive) return;
+      if (document.hidden) {
+        updateStatus('tab');
+        addViolation('tab');
+        startEscalatingAlert();
+      } else {
+        updateStatus('aman');
+        stopEscalatingAlert();
+        if (_audioCtx && _audioCtx.state === 'suspended') { _audioCtx.resume().catch(() => {}); }
+      }
     });
+
     let iframeHasFocus = false;
-    document.getElementById('examFrame').addEventListener('mouseenter',()=>{iframeHasFocus=true;});
-    document.getElementById('examFrame').addEventListener('mouseleave',()=>{iframeHasFocus=false;});
-    window.addEventListener('blur',()=>{if(!document.hidden){if(iframeHasFocus){updateStatus('aman');}else{updateStatus('keluar');addViolation('keluar');}}});
-    window.addEventListener('focus',()=>{iframeHasFocus=false;updateStatus('aman');});
-    window.addEventListener('beforeunload',(e)=>{updateStatus('keluar');e.preventDefault();e.returnValue='Kamu sedang ujian. Yakin keluar?';return e.returnValue;});
-    document.addEventListener('contextmenu',e=>e.preventDefault());
-    document.addEventListener('copy',e=>e.preventDefault());
-    document.addEventListener('paste',e=>e.preventDefault());
-    document.addEventListener('keydown',(e)=>{
-      if((e.ctrlKey&&e.shiftKey&&['I','J','C','U'].includes(e.key.toUpperCase()))||(e.ctrlKey&&['U','S','P'].includes(e.key.toUpperCase()))||e.key==='F12') e.preventDefault();
+    document.getElementById('examFrame').addEventListener('mouseenter', () => { iframeHasFocus = true; });
+    document.getElementById('examFrame').addEventListener('mouseleave', () => { iframeHasFocus = false; });
+
+    window.addEventListener('blur', () => {
+      if (!monitoringActive) return;
+      if (!document.hidden) {
+        if (iframeHasFocus) {
+          updateStatus('aman');
+        } else {
+          updateStatus('keluar');
+          addViolation('keluar');
+          startEscalatingAlert();
+        }
+      }
     });
+
+    window.addEventListener('focus', () => {
+      if (!monitoringActive) return;
+      iframeHasFocus = false;
+      updateStatus('aman');
+      stopEscalatingAlert();
+      if (_audioCtx && _audioCtx.state === 'suspended') { _audioCtx.resume().catch(() => {}); }
+    });
+
+    document.addEventListener('touchstart', () => {
+      if (_audioCtx && _audioCtx.state === 'suspended') { _audioCtx.resume().catch(() => {}); }
+    }, { passive: true });
+
+    window.addEventListener('beforeunload', (e) => {
+      if (!monitoringActive) return; /* tidak blokir jika sudah selesai */
+      stopEscalatingAlert();
+      if (pesertaDocRef) {
+        const url = `https://firestore.googleapis.com/v1/projects/pengawas-asaj78/databases/(default)/documents/rooms/${roomCode}/peserta/${pesertaDocId}?updateMask.fieldPaths=status&updateMask.fieldPaths=lastUpdate`;
+        const payload = JSON.stringify({ fields: { status: { stringValue: 'offline' } } });
+        try { navigator.sendBeacon(url, new Blob([payload], { type:'application/json' })); } catch(_) {}
+        try { pesertaDocRef.update({ status:'offline', lastUpdate: firebase.firestore.FieldValue.serverTimestamp() }); } catch(_) {}
+      }
+      e.preventDefault(); e.returnValue = 'Kamu sedang ujian. Yakin keluar?';
+      return e.returnValue;
+    });
+
+    document.addEventListener('contextmenu', e => e.preventDefault());
+    document.addEventListener('copy',  e => e.preventDefault());
+    document.addEventListener('paste', e => e.preventDefault());
+    document.addEventListener('keydown', (e) => {
+      if ((e.ctrlKey && e.shiftKey && ['I','J','C','U'].includes(e.key.toUpperCase())) ||
+          (e.ctrlKey && ['U','S','P'].includes(e.key.toUpperCase())) ||
+          e.key === 'F12') {
+        e.preventDefault();
+      }
+    });
+  }
+
+  /* ── Matikan semua fungsi keamanan ── */
+  function nonaktifkanKeamanan() {
+    monitoringActive = false;
+    stopEscalatingAlert();
+    clearInterval(timerInterval);
+    if (examUrlUnsubscribe) { examUrlUnsubscribe(); examUrlUnsubscribe = null; }
+    /* Tutup semua overlay aktif */
+    document.getElementById('warningOverlay').classList.remove('show');
+    document.getElementById('confirmModal').classList.remove('show');
+  }
+
+  /* ══════════════════════════════════════════
+     TOMBOL SELESAI — KONFIRMASI & NOTIFIKASI
+  ══════════════════════════════════════════ */
+  function konfirmasiSelesai() {
+    speakOnBtn('Apakah kamu yakin ingin menyelesaikan ujian?');
+    document.getElementById('confirmModal').classList.add('show');
+  }
+
+  function tutupKonfirmasi() {
+    document.getElementById('confirmModal').classList.remove('show');
+    speakOnBtn('Kembali ke ujian');
+  }
+
+  async function selesaiManual() {
+    /* 1. Tutup modal konfirmasi */
+    document.getElementById('confirmModal').classList.remove('show');
+
+    /* 2. Matikan semua fungsi keamanan */
+    nonaktifkanKeamanan();
+
+    /* 3. Update status ke Firestore */
+    if (pesertaDocRef) {
+      try {
+        await pesertaDocRef.update({
+          status     : 'selesai',
+          lastUpdate : firebase.firestore.FieldValue.serverTimestamp()
+        });
+      } catch(e) { console.error('selesaiManual Firestore error:', e); }
+    }
+
+    /* 4. Isi data di notifikasi */
+    document.getElementById('doneNama').textContent      = pesertaNama;
+    document.getElementById('doneKelas').textContent     = pesertaKelas;
+    document.getElementById('doneRuangan').textContent   = pesertaRuangan;
+    document.getElementById('doneViolations').textContent = violations + ' kali';
+
+    /* 5. Tampilkan notifikasi selesai */
+    document.getElementById('doneNotification').classList.add('show');
+
+    /* 6. TTS */
+    speakOnBtn('Selamat, ujian kamu telah selesai. Terima kasih.');
+
+    /* 7. Countdown 5 detik lalu kembali ke halaman room */
+    let sisa = 5;
+    const circumference = 2 * Math.PI * 22; // 138.23...
+    const ringFill = document.getElementById('ringFill');
+
+    function updateRing(n) {
+      document.getElementById('countdownNum').textContent = n;
+      const offset = circumference * (1 - n / 5);
+      ringFill.style.strokeDashoffset = offset;
+    }
+    updateRing(sisa);
+
+    const countdownInterval = setInterval(() => {
+      sisa--;
+      updateRing(sisa);
+      if (sisa <= 0) {
+        clearInterval(countdownInterval);
+        kembaliKeHalamanRoom();
+      }
+    }, 1000);
+  }
+
+  function kembaliKeHalamanRoom() {
+    /* Reset state */
+    violations    = 0;
+    timerSeconds  = 90 * 60;
+    pesertaNama = pesertaId = pesertaKelas = pesertaRuangan = '';
+    roomCode = roomName = examUrl = '';
+    pesertaDocRef  = null;
+    pesertaDocId   = '';
+    foundRoomData  = null;
+    monitoringActive = false;
+
+    /* Reset UI */
+    document.getElementById('doneNotification').classList.remove('show');
+    document.getElementById('examScreen').style.display = 'none';
+    document.getElementById('examFrame').src = 'about:blank';
+    document.getElementById('timerDisplay').textContent = '90:00';
+    document.getElementById('violationCount').textContent = '0';
+    document.getElementById('timerBadgeSm').classList.remove('danger');
+
+    /* Reset step ke 1 */
+    document.getElementById('formStep2').classList.remove('active');
+    document.getElementById('formStep1').classList.add('active');
+    document.getElementById('step1Num').className   = 'step-num active';
+    document.getElementById('step1Label').className = 'step-label active';
+    document.getElementById('step1Num').textContent = '1';
+    document.getElementById('stepLine1').className  = 'step-line';
+    document.getElementById('step2Num').className   = 'step-num idle';
+    document.getElementById('step2Label').className = 'step-label idle';
+    document.getElementById('inputRoomCode').value  = '';
+    document.getElementById('btnCekRoom').disabled  = true;
+    document.getElementById('btnCekRoom').textContent = 'Cek & Lanjutkan →';
+    document.getElementById('roomInfoBox').classList.remove('show');
+    document.getElementById('errBox').classList.remove('show');
+
+    /* Tampilkan login screen */
+    document.getElementById('loginScreen').style.display = 'flex';
   }
 
   /* ══════════════════════════════════════════
      TIMER & UI
   ══════════════════════════════════════════ */
   function startTimer() {
-    timerInterval = setInterval(()=>{
+    timerInterval = setInterval(() => {
       timerSeconds--;
-      const m=Math.floor(timerSeconds/60).toString().padStart(2,'0'),s=(timerSeconds%60).toString().padStart(2,'0');
-      document.getElementById('timerDisplay').textContent=`${m}:${s}`;
-      if(timerSeconds<=300) document.getElementById('timerBadgeSm').classList.add('danger');
-      if(timerSeconds<=0){clearInterval(timerInterval);selesai();}
-    },1000);
+      const m = Math.floor(timerSeconds / 60).toString().padStart(2, '0');
+      const s = (timerSeconds % 60).toString().padStart(2, '0');
+      document.getElementById('timerDisplay').textContent = `${m}:${s}`;
+
+      if (timerSeconds === 300)  speakOnBtn('Perhatian, waktu ujian tersisa lima menit');
+      if (timerSeconds === 60)   speakOnBtn('Waktu ujian tersisa satu menit');
+
+      if (timerSeconds <= 300) document.getElementById('timerBadgeSm').classList.add('danger');
+      if (timerSeconds <= 0)  { clearInterval(timerInterval); selesaiOtomatis(); }
+    }, 1000);
   }
 
-  function selesai() {
-    if(pesertaRef) pesertaRef.update({status:'selesai',lastUpdate:Date.now()});
+  async function selesaiOtomatis() {
+    nonaktifkanKeamanan();
+    speakOnBtn('Waktu ujian habis, terima kasih');
+    if (pesertaDocRef) {
+      try {
+        await pesertaDocRef.update({ status:'selesai', lastUpdate: firebase.firestore.FieldValue.serverTimestamp() });
+      } catch(e) {}
+    }
     alert('Waktu ujian habis! Terima kasih.');
-    document.getElementById('examScreen').style.display='none';
-    document.getElementById('loginScreen').style.display='flex';
+    document.getElementById('examScreen').style.display = 'none';
+    document.getElementById('loginScreen').style.display = 'flex';
   }
 
   function toggleHeader() {
-    const header=document.getElementById('examHeader');
+    const header   = document.getElementById('examHeader');
     const expanded = !header.classList.contains('collapsed');
-    if(expanded){header.classList.add('collapsed');header.style.maxHeight='';}
-    else{header.style.maxHeight=header.scrollHeight+'px';header.classList.remove('collapsed');}
+    speakOnBtn(expanded ? 'Menu ditutup' : 'Menu dibuka');
+    if (expanded) { header.classList.add('collapsed'); header.style.maxHeight = ''; }
+    else { header.style.maxHeight = header.scrollHeight + 'px'; header.classList.remove('collapsed'); }
   }
 
   function initHeaderHeight() {
-    const header=document.getElementById('examHeader');
+    const header = document.getElementById('examHeader');
     header.dataset.fullHeight = header.scrollHeight;
     header.classList.add('collapsed');
   }
 
   function onFrameLoad() {
-    const loading=document.getElementById('iframeLoading');
+    const loading = document.getElementById('iframeLoading');
     loading.classList.add('hidden');
-    setTimeout(()=>{loading.style.display='none';},300);
+    setTimeout(() => { loading.style.display = 'none'; }, 300);
   }
 </script>
 </body>
